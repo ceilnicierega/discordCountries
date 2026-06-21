@@ -39,9 +39,11 @@ def scores_to_code(scores: dict) -> str:
     return 'n'.join([hex(number)[2:] for number in numbers])
 
 def normalise(string: str | list[str]):
+    alphabet = [chr(i) for i in range(97,123)] + [' ']
+
     if type(string) == str:
         string = string.lower()
-        string = string.replace("\'", "")
+        string = ''.join([l if l in alphabet else '' for l in string])
         return string
     elif type(string) == list:
         return [normalise(substring) for substring in string]
@@ -85,19 +87,6 @@ async def on_message(message):
     if "femboy" in message.content.lower() and message.author != client.user and random.random() < .07:
         await message.reply("Kill femboys. Behead femboys. Roundhouse kick a femboys into the concrete. Slam dunk a femboys into the trashcan. Crucify filthy femboys. Defecate in a femboys food. Launch femboys into the sun. Stir fry femboys in a wok. Toss femboys into active volcanoes. Urinate into a femboys gas tank. Judo throw femboys into a wood chipper. Twist femboys head off. Report femboys to the IRS. Karate chop femboys in half. Curb stomp pregnant femboys. Trap femboys in quicksand. Crush femboys in the trash compactor. Liquefy femboys in a vat of acid. Eat femboys. Dissect femboys. Exterminate femboysin the gas chamber. Stomp femboys skulls with steel toed boots. Cremate femboys in the oven. Lobotomize femboys. Mandatory abortions for femboys. Grind femboys in the garbage disposal. Drown femboys in fried chicken grease. Vaporize femboys with a ray gun. Kick old femboys down the stairs. Feed femboys to alligators. Slice femboys with a katana.")
 
-    if message.content.startswith("yt-dlp "):
-        name = hex(random.getrandbits(16))+".mp4"
-        os.system(message.content + " -o "+name + " -t mp4")
-
-        os.system(
-            f'ffmpeg -y -i "{name}" '
-            f'-c:v libx264 -crf 30 -preset medium '
-            f'-c:a aac -b:a 96k '
-            f'"{name}"'
-        )
-
-        await message.reply(file=discord.File(name))
-
     if message.content == "!viewvariables":
         print(json.dumps(active_games, indent=2))
 
@@ -113,11 +102,10 @@ async def on_message(message):
                 with open("user_scores.json", 'w') as f:
                     json.dump(scores, f, indent=2)
 
-        parts = message.content.split()
-        if len(parts) == 1 or parts[1].lower() not in categories.keys():
+        if message.content[6:] not in categories.keys():
             category = "Europe"
         else:
-            category = parts[1]
+            category = message.content[6:]
         question_country = gen_question(author_id, category)
         question = await message.reply(f"Test question: {question_country}")
         active_games[message.author.id] = {
