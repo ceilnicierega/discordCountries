@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from dataclasses import dataclass
 
 """
 Africa:         54
@@ -12,67 +13,165 @@ Oceania:        14
 World:          195
 """
 
-def normalise(string: str | list[str]) -> str | list[str]:
-    if type(string) == str:
+def normalise(string: str | list) -> None | list[str | list] | str:
+    if isinstance(string, str):
         string = string.lower()
         string = string.replace("\'", "")
         return string
-    elif type(string) == list:
+    elif isinstance(string, list):
         return [normalise(substring) for substring in string]
 
+class Game:
 
+    category_names = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "World"]
 
-def question(category: str, recents: list) -> list:
+    @dataclass
+    class Question:
+        country: str
+        answers: list[str]
+        std_question: bool
 
-    with open("scores.json", 'r') as f:
-        scores = json.load(f)
+    with open("categories.json", 'r') as f:
+        categories = json.load(f)
+    weights = {
+        0: 1.00,
+        1: 0.90,
+        2: 0.75,
+        3: 0.55,
+        4: 0.30,
+        5: 0.10,
+    }
 
-    if category == "World":
-        capitals = countries
-    else: capitals = continents[category]
+    def __init__(self, user: str, category: str) -> None:
+        self.user = user
+        self.category = category
+        self.capitals = self.categories[category]
+        self.recents = []
+        self.scores = Game.get_user_scores(user)
+        self.score_totals = None
+        self.update_score_totals()
 
-    picked, country = False, None
-    while not picked or country in recents:
-        country, p = random.choice(list(capitals.keys())), random.random()
-        score = scores[category][country]
-        if  score == 0 and p < 1.00 or\
-            score == 1 and p < 0.85 or\
-            score == 2 and p < 0.55 or\
-            score == 3 and p < 0.25:
-            picked = True
+    @staticmethod
+    def code_to_scores(string: str) -> dict:
 
-    score_totals = {0: 0, 1: 0, 2: 0, 3: 0}
-    for c in capitals.keys():
-        score = scores[category][c]
-        score_totals[score] += 1
+        scores = {category: {} for category in Game.categories.keys()}
+        for i, category in enumerate(Game.categories.keys()):
 
-    print(f"Scores so far for {category}: 0:{score_totals[0]} | 1:{score_totals[1]} | 2:{score_totals[2]} | 3:{score_totals[3]}")
-    print(f"What is the capital of {country}? [{str(round(p, 2))}]")
-    guess = input(">>> ").lower()
-    answer = capitals[country]
+            number = int(string.split('n')[i], 16)
+            j = 0
+            while number > 1:
+                scores[category][list(Game.categories[category].keys())[j]] = number % 4
+                number >>= 2
+                j += 1
 
-    if guess.lower() == "exit":
-        exit()
-    elif normalise(guess) in normalise(answer):
-        scores[category][country] += 1 if scores[category][country] != 3 else 0
-        os.system('cls')
-        print("Correct!")
-    else:
-        scores[category][country] = 0
-        os.system('cls')
-        if len(answer) == 1:
-            print(f"Incorrect. The correct answer is {answer[0]}.")
+        return scores
+
+    @staticmethod
+    def scores_to_code(scores: dict) -> str:
+        numbers = []
+        for category in scores.keys():
+            number = 1
+            for country in scores[category].keys():
+                number <<= 2
+                number += scores[category][country]
+            numbers.append(number)
+        return 'n'.join([hex(number)[2:] for number in numbers])
+
+    @staticmethod
+    def get_user_scores(user: str) -> dict:
+        with open("userscores.json", 'r') as f:
+            user_scores = json.load(f)
+        if user in user_scores.keys():
+            return Game.code_to_scores(user_scores[user])
         else:
-            print(f"Incorrect. The correct answers are {', '.join(answer[:-1])} and {answer[-1]}.")
+            user_scores[user] = "1000000000000000000000000000n1000000000000000000000000n40000000000000000000000n400000000000n1000000n10000000n40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            with open("userscores.json", 'w') as f:
+                json.dump(user_scores, f, indent=2)
+            return Game.code_to_scores(user_scores[user])
 
-    recents.append(country)
-    if len(recents) > 5:
-        recents.pop(0)
+    def get_score_totals_text(self):
+        return (f"0:{self.score_totals[0]} | "
+        f"1:{self.score_totals[1]} | "
+        f"2:{self.score_totals[2]} | "
+        f"3:{self.score_totals[3]} | "
+        f"4:{self.score_totals[4]} | "
+        f"5:{self.score_totals[5]}")
 
-    with open("scores.json", 'w') as f:
-        json.dump(scores, f, indent=2)
+    def update_scores(self):
+        self.update_score_totals()
+        with open("userscores.json", 'r') as f:
+            user_scores = json.load(f)
+        user_scores[self.user] = self.scores_to_code(self.scores)
+        with open("userscores.json", 'w') as f:
+            json.dump(user_scores, f, indent=2)
 
-    return recents
+    def update_score_totals(self) -> None:
+        score_totals = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
-def load_scores(category, scores_value):
-    pass
+        for c in self.capitals.keys():
+            score = self.scores[self.category][c]
+            score_totals[score] += 1
+        self.score_totals = score_totals
+
+    def make_question(self) -> Question:
+        choices = [c for c in self.capitals.keys() if c not in self.recents]
+
+        country = random.choices(choices, weights=[Game.weights[self.scores[self.category][c]] for c in choices])[0]
+
+        answer = self.capitals[country]
+
+        std_question = bool(random.random() < 0.6)
+
+        self.recents.append(country)
+
+        return Game.Question(country, answer, std_question)
+
+    def process_answer(self, guess: str, question: Question) -> bool:
+        prev_score = self.scores[self.category][question.country]
+
+        if question.std_question:
+            if normalise(guess) in normalise(question.answers):
+                self.scores[self.category][question.country] += 1 if prev_score != 5 else 0
+                self.update_scores()
+                return True
+            else:
+                self.scores[self.category][question.country] = 0
+                self.update_scores()
+                return False
+        else:
+            if normalise(guess) == normalise(question.country):
+                self.scores[self.category][question.country] += 1 if prev_score != 5 else 0
+                self.update_scores()
+                return True
+            else:
+                self.scores[self.category][question.country] = 0
+                self.update_scores()
+                return False
+
+
+    def ask_question(self):
+        question = self.make_question()
+
+        print(f"Scores so far for {self.category}: {self.get_score_totals_text()}")
+
+        if question.std_question:
+            print(f"What is the capital of {question.country}?")
+        else:
+            determiner = "the" if len(question.answers) == 1 else "a"
+            answer = random.choice(question.answers) if isinstance(question.answers, list) else question.answers[0]
+            print(f"{answer} is {determiner} capital of which country?")
+
+        guess = input(">>> ").lower()
+
+        correct = self.process_answer(guess, question)
+        os.system("cls")
+
+        if correct:
+            print("Correct!")
+        elif question.std_question:
+            if len(question.answers) == 1:
+                print(f"Incorrect. The correct answer is {question.answers[0]}.")
+            else:
+                print(f"Incorrect. The correct answers are {', '.join(question.answers[:-1])} and {question.answers[-1]}.")
+        else:
+            print(f"Incorrect. The correct answer is {question.country}.")

@@ -1,5 +1,5 @@
 {
-  "Africa": {
+  "africa": {
     "Algeria": ["Algiers"],
     "Angola": ["Luanda"],
     "Benin": ["Porto-Novo", "Cotonou"],
@@ -56,7 +56,7 @@
     "Zimbabwe": ["Harare"]
   },
 
-  "Asia": {
+  "asia": {
     "Afghanistan": ["Kabul"],
     "Armenia": ["Yerevan"],
     "Azerbaijan": ["Baku"],
@@ -107,7 +107,7 @@
     "Yemen": ["Sanaa"]
   },
 
-  "Europe": {
+  "europe": {
     "Albania": ["Tirana"],
     "Andorra": ["Andorra la Vella"],
     "Austria": ["Vienna"],
@@ -155,7 +155,7 @@
     "Vatican City": ["Vatican City"]
   },
 
-  "North America": {
+  "north America": {
     "Antigua and Barbuda": ["St. John's"],
     "Bahamas": ["Nassau"],
     "Barbados": ["Bridgetown"],
@@ -181,7 +181,7 @@
     "United States": ["Washington, D.C."]
   },
 
-  "South America": {
+  "south America": {
     "Argentina": ["Buenos Aires"],
     "Bolivia": ["Sucre", "La Paz"],
     "Brazil": ["Brasilia"],
@@ -196,7 +196,7 @@
     "Venezuela": ["Caracas"]
   },
 
-  "Oceania": {
+  "oceania": {
     "Australia": ["Canberra"],
     "Fiji": ["Suva"],
     "Kiribati": ["South Tarawa"],
@@ -213,7 +213,7 @@
     "Vanuatu": ["Port Vila"]
   },
 
-  "World": {
+  "world": {
     "Afghanistan": ["Kabul"],
     "Albania": ["Tirana"],
     "Algeria": ["Algiers"],
