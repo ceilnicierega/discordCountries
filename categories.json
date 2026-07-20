@@ -155,7 +155,7 @@
     "Vatican City": ["Vatican City"]
   },
 
-  "north America": {
+  "north america": {
     "Antigua and Barbuda": ["St. John's"],
     "Bahamas": ["Nassau"],
     "Barbados": ["Bridgetown"],
@@ -181,7 +181,7 @@
     "United States": ["Washington, D.C."]
   },
 
-  "south America": {
+  "south america": {
     "Argentina": ["Buenos Aires"],
     "Bolivia": ["Sucre", "La Paz"],
     "Brazil": ["Brasilia"],

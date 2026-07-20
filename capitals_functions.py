@@ -2,6 +2,7 @@ import json
 import os
 import random
 from dataclasses import dataclass
+import asyncio
 
 """
 Africa:         54
@@ -23,14 +24,12 @@ def normalise(string: str | list) -> None | list[str | list] | str:
 
 class Game:
 
-    category_names = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "World"]
-
     @dataclass
     class Question:
         country: str
         answers: list[str]
         std_question: bool
-
+    category_names = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "World"]
     with open("categories.json", 'r') as f:
         categories = json.load(f)
     weights = {
@@ -42,14 +41,42 @@ class Game:
         5: 0.10,
     }
 
-    def __init__(self, user: str, category: str) -> None:
+    def __init__(self, user: str, category: str, lock: asyncio.Lock=None) -> None:
         self.user = user
         self.category = category
+        self.lock = lock
         self.capitals = self.categories[category]
         self.recents = []
-        self.scores = Game.get_user_scores(user)
+        self.scores = None
         self.score_totals = None
-        self.update_score_totals()
+
+    @staticmethod
+    async def clearuser(user: str, lock: asyncio.Lock=None, category: str=None) -> None:
+        if lock:
+            async with lock:
+                with open("userscores.json", 'r') as f:
+                    userscores = json.load(f)
+        else:
+            with open("userscores.json", 'r') as f:
+                userscores = json.load(f)
+
+        scores = Game.code_to_scores(userscores[user])
+        if category:
+            for country in scores[category].keys():
+                scores[category][country] = 0
+        else:
+            for category in normalise(Game.category_names):
+                for country in scores[category].keys():
+                    scores[category][country] = 0
+
+        userscores[user] = Game.scores_to_code(scores)
+        if lock:
+            async with lock:
+                with open("userscores.json", 'w') as f:
+                    json.dump(userscores, f, indent=2)
+        else:
+            with open("userscores.json", 'w') as f:
+                json.dump(userscores, f, indent=2)
 
     @staticmethod
     def code_to_scores(string: str) -> dict:
@@ -77,8 +104,16 @@ class Game:
             numbers.append(number)
         return 'n'.join([hex(number)[2:] for number in numbers])
 
+    async def get_user_scores(self) -> None:
+        if self.lock:
+            async with self.lock:
+                self.scores = Game._get_user_scores(self.user)
+        else:
+            self.scores = Game._get_user_scores(self.user)
+        self.update_score_totals()
+
     @staticmethod
-    def get_user_scores(user: str) -> dict:
+    def _get_user_scores(user: str) -> dict:
         with open("userscores.json", 'r') as f:
             user_scores = json.load(f)
         if user in user_scores.keys():
@@ -97,7 +132,14 @@ class Game:
         f"4:{self.score_totals[4]} | "
         f"5:{self.score_totals[5]}")
 
-    def update_scores(self):
+    async def update_scores(self) -> None:
+        if self.lock:
+            async with self.lock:
+                self._update_scores()
+        else:
+            self._update_scores()
+
+    def _update_scores(self) -> None:
         self.update_score_totals()
         with open("userscores.json", 'r') as f:
             user_scores = json.load(f)
@@ -126,28 +168,27 @@ class Game:
 
         return Game.Question(country, answer, std_question)
 
-    def process_answer(self, guess: str, question: Question) -> bool:
+    async def process_answer(self, guess: str, question: Question) -> bool:
         prev_score = self.scores[self.category][question.country]
 
         if question.std_question:
             if normalise(guess) in normalise(question.answers):
                 self.scores[self.category][question.country] += 1 if prev_score != 5 else 0
-                self.update_scores()
+                await self.update_scores()
                 return True
             else:
                 self.scores[self.category][question.country] = 0
-                self.update_scores()
+                await self.update_scores()
                 return False
         else:
             if normalise(guess) == normalise(question.country):
                 self.scores[self.category][question.country] += 1 if prev_score != 5 else 0
-                self.update_scores()
+                await self.update_scores()
                 return True
             else:
                 self.scores[self.category][question.country] = 0
-                self.update_scores()
+                await self.update_scores()
                 return False
-
 
     def ask_question(self):
         question = self.make_question()
